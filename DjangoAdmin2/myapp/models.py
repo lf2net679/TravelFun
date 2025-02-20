@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.templatetags.static import static
-from ckeditor.fields import RichTextField
+from django_ckeditor_5.fields import CKEditor5Field
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils.translation import gettext_lazy as _
 import os
@@ -43,7 +43,26 @@ class Member(AbstractUser):
     )
     favorite_restaurants = models.ManyToManyField('Restaurant', related_name='favorited_by', blank=True, verbose_name='喜愛的餐廳')
     favorite_products = models.ManyToManyField('Product', related_name='favorited_by', blank=True, verbose_name='喜愛的商品')
-    address = models.CharField(max_length=255, blank=True, null=True, verbose_name='地址')
+    
+    # 地址相關欄位
+    postal_code = models.CharField(max_length=10, blank=True, null=True, verbose_name='郵遞區號')
+    city = models.CharField(max_length=50, blank=True, null=True, verbose_name='城市')
+    district = models.CharField(max_length=50, blank=True, null=True, verbose_name='區域')
+    address = models.CharField(max_length=255, blank=True, null=True, verbose_name='詳細地址')
+    phone = models.CharField(max_length=20, blank=True, null=True, verbose_name='聯絡電話')
+    
+    def get_full_address(self):
+        """獲取完整地址"""
+        address_parts = []
+        if self.postal_code:
+            address_parts.append(self.postal_code)
+        if self.city:
+            address_parts.append(self.city)
+        if self.district:
+            address_parts.append(self.district)
+        if self.address:
+            address_parts.append(self.address)
+        return ' '.join(address_parts) if address_parts else None
 
     def get_avatar_url(self):
         if self.avatar:
@@ -93,7 +112,7 @@ class Message(models.Model):
     sender = models.ForeignKey(Member, related_name='sent_messages', on_delete=models.CASCADE, verbose_name='寄件人')
     recipient = models.ForeignKey(Member, related_name='received_messages', on_delete=models.CASCADE, verbose_name='收件人')
     subject = models.CharField(max_length=255, verbose_name='主題')
-    content = RichTextField(verbose_name='內容')
+    content = CKEditor5Field(verbose_name='內容', config_name='default')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='創建時間')
     is_read = models.BooleanField(default=False, verbose_name='是否已讀')
     quoted_message = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='quotes', verbose_name='引用訊息')
@@ -123,7 +142,7 @@ class Product(models.Model):
     name = models.CharField(max_length=200, verbose_name='名稱')
     category = models.CharField(max_length=100, verbose_name='類別')
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='價格')
-    description = RichTextField(blank=True, verbose_name='描述')
+    description = CKEditor5Field(blank=True, verbose_name='描述', config_name='default')
     image = models.ImageField(upload_to='products/', blank=True, null=True, verbose_name='商品圖片')
     stock = models.PositiveIntegerField(default=0, verbose_name='庫存')
     is_active = models.BooleanField(default=True, verbose_name='是否上架')
@@ -219,7 +238,7 @@ class Category(models.Model):
 
 class Post(models.Model):
     title = models.CharField(max_length=200, verbose_name='標題')
-    content = RichTextField(verbose_name='內容')
+    content = CKEditor5Field(verbose_name='內容', config_name='default')
     author = models.ForeignKey(Member, on_delete=models.CASCADE, related_name='myapp_posts', verbose_name='作者')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='myapp_posts', verbose_name='分類')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='創建時間')
